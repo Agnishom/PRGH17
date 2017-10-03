@@ -1,0 +1,669 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Tutorial 2</title>
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/black.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section><h2>Typeclasses, Automatic Differentiation and more</section>
+				<section>
+					<section>
+						The following code typechecks..
+					<pre><code data-trim data-noescape>
+						quickSort :: [Int] -> [Int]
+						quickSort []  = []
+						quickSort (x:xs)  = l ++ [x] ++ r
+						  where
+						    (l, r) = partition (< x) xs
+					</code></pre>
+					</section>
+					<section>
+						Does the following code typecheck?
+					<pre><code data-trim data-noescape>
+						quickSort :: [a] -> [a]
+						quickSort []  = []
+						quickSort (x:xs)  = l ++ [x] ++ r
+						  where
+						    (l, r) = partition (< x) xs
+					</code></pre>
+					</section>
+					<section> Why? </section>
+				</section>
+				<section>
+					<section><p class="fragment fade-in">Enter Typeclasses</p></section>
+					<section><pre>
+						<code data-trim data-noescape>
+							quickSort :: [a] -> [a]
+							quickSort []  = []
+							quickSort (x:xs)  = l ++ [x] ++ r
+							  where
+							    (l, r) = partition <mark>(< x)</mark> xs
+						</code></pre>
+						<ul><li> <code>a</code> must be comparable</li>
+							<li class="fragment fade-in"><code>Int</code>, <code>Char</code>, <code>[Int]</code> are comparable.</li>
+							<li class="fragment fade-in"><code>Int -> Int</code>, <code>a -> Bool</code> are not comparable.</li>
+						</ul>
+					</section>
+					<section> The types <code>Int</code>, <code>Char</code>, <code>[Int]</code> are instances of the typeclass <code>Ord</code></section>
+					<section>
+						<pre><code data-trim data-noescape>
+							quickSort :: (Ord a) => [a] -> [a]
+							quickSort []  = []
+							quickSort (x:xs)  = l ++ [x] ++ r
+							  where
+							    (l, r) = partition (< x) xs
+						</code></pre>
+						typechecks!
+					</section>
+				</section>
+				<section>
+					<section>
+						Let's create a type for Polynomials
+						<pre><code data-trim data-noescape>
+							newtype Polynomial = Poly [Int]
+						</code></pre>
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							*Main> Poly [1,2,3]
+							<interactive>:10:1:
+							    No instance for (Show (Polynomial a0))
+							      arising from a use of ‘print’
+							    In the first argument of ‘print’, namely ‘it’
+							    In a stmt of an interactive GHCi command: print it
+							</code></pre>
+							need to make <code>Polynomial</code> to a member of <code>Show</code>
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							newtype Polynomial = Poly [Int]
+								deriving Show
+						</code></pre>
+						<pre class="fragment fade-in"><code data-trim data-noescape>
+							*Main> Poly [1,2,3]
+							 Poly [1,2, 3]
+						</code></pre>
+						<p class="fragment fade-in"> works now.. but not so great</p>
+					</section>
+					<section>
+						Let's <s>make</s> define our own <code>show</code>
+						<pre><code data-trim data-noescape>
+							instance Show Polynomial where
+							  show (Poly [])       = "0"
+							  show (Poly (x:xs))
+							      = (show x) ++ " + " ++ (concat $ intersperse " + " terms)
+							    where
+							    terms
+							      = map (\(a,b) -> (show a) ++ " x^" ++ (show b)) (zip xs [1..n])
+							    n = length xs
+						</code></pre>
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							*Main Data.List> Poly [1..5]
+							1 + 2 x^1 + 3 x^2 + 4 x^3 + 5 x^4
+						</code></pre>
+						our pretty printing works now!
+					</section>
+				</section>
+				<section>
+					<section>
+						Let's Order them...
+						<p class="fragment fade-in">...make them a member of the typeclass <code>Ord</code> </p>
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							instance Ord Polynomial where
+							  (Poly xs) `compare` (Poly ys)
+							    | length xs < length ys   = LT
+							    | length xs > length ys   = GT
+							    | head xs < head ys       = LT
+							    | head xs > head ys       = GT
+							    | otherwise               = EQ
+							</code></pre>
+						<div class="fragment fade in"> but that does not work...
+								<pre><code data-trim data-noescape>
+									Prelude Data.List> :r
+									[1 of 1] Compiling Main             ( randomStuff.hs, interpreted )
+
+									randomStuff.hs:20:10:
+									    No instance for (Eq Polynomial)
+									      arising from the superclasses of an instance declaration
+									    In the instance declaration for ‘Ord Polynomial’
+									Failed, modules loaded: none.
+								</code></pre>
+							</div>
+					</section>
+					<section>
+						<ul>
+							<li> The <code>Ord</code> class extends the class <code>Eq</code>. </li>
+							<li> The definition of the <code>Ord</code> typeclass looks something like this:
+								<pre><code data-trim data-noescape>
+									class  (Eq a) => Ord a  where
+  									(<), (<=), (>=), (>)  :: a -> a -> Bool
+  									max, min              :: a -> a -> a
+								</code></pre>
+							 </li>
+							<li> This means all the <i>methods</i> in <code>Eq</code> are available as a part of the <code>Ord</code> class.</li>
+							<li> We often say that <code>Ord</code> is a subclass of <code>Eq</code>. </li>
+						</ul>
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+						newtype Polynomial = Poly [Int]
+						  deriving Eq
+						</code></pre>
+						... and that fixes our code.
+					</section>
+				</section>
+				<section>
+					<section>We want to do arithmetic on these polynomials....<p class="fragment fade-in"> Enter <code>Num</code> Typeclass </p></section>
+					<section>
+						<pre><code data-trim data-noescape>
+							instance Num Polynomial where
+							  (Poly fs) + (Poly [])         = Poly fs
+							  (Poly []) + (Poly gs)         = Poly gs
+							  (Poly (f:fs)) + (Poly (g:gs)) = Poly (f+g : rest)
+							    where (Poly rest) = (Poly fs) + (Poly gs)
+							  (Poly (f:fs)) * (Poly (g:gs)) = Poly (f*g : rest)
+							    where (Poly rest) = (Poly [f])*(Poly gs) + (Poly fs)*(Poly (g:gs))
+							  (Poly _) * (Poly _) = Poly []
+							  fromInteger n       = Poly [fromInteger n]
+							  abs (Poly xs)       = undefined --length xs
+							  signum (Poly xs)    = Poly (map signum xs)
+							  negate (Poly xs)    = Poly (map (\x -> -x) xs)
+						</code></pre>
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							*Main> (Poly [1,4,5])+(Poly [1,2,1])
+							2 + 6 x^1 + 6 x^2
+						</code></pre>
+						addition works!
+						<div class="fragment fade-in">
+							<pre><code data-trim data-noescape>
+								*Main> (Poly [1,4,5])*(Poly [1,2,1])
+								1 + 6 x^1 + 14 x^2 + 14 x^3 + 5 x^4
+							</code></pre>
+							... so does multiplication
+						</div>
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							*Main> (Poly [1,1])^5
+							1 + 5 x^1 + 10 x^2 + 10 x^3 + 5 x^4 + 1 x^5
+						</code></pre>
+						exponentiation comes for free!
+							<ul class="fragment fade-in">
+								<li>The <code>Num</code> typeclass supports <code>(^)</code> but we do not need to define it manually.</li>
+								<li>We also have <code>(-)</code>, as long as we have <code>negate</code>, and vice-versa.</li>
+							</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						<pre><code data-trim data-noescape>
+							newtype Polynomial = Poly [Int]
+							  deriving Eq
+						</code></pre>
+						but why stick to <code>Int</code> polynomials?
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							newtype Polynomial a = Poly [a]
+								deriving Eq
+						</code></pre>
+						we now have polynomials on arbitrary values
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							instance Show (Polynomial a)
+
+							instance Ord (Polynomial a)
+
+							instance Num (Polynomial a)
+						</code></pre>
+						But how do you show, compare, or add arbitrary types?!
+					</section>
+					<section>
+						want conditional instances instead...
+						<pre><code data-trim data-noescape>
+							instance Show a => Show (Polynomial a)
+
+							instance Ord a => Ord (Polynomial a)
+
+							instance Num a => Num (Polynomial a)
+						</code></pre>
+					</section>
+				</section>
+				<section>
+					<section>A Word on Kinds <p class="fragment fade-in"> ... type of types</p> </section>
+					<section>
+						<ul>
+						<li><code>Polynomial Int</code> is really a type. We can produce <i>values</i> which inhabit <code>Polynomial Int</code>
+							<pre><code data-trim data-noescape>
+								*Main> :t (Poly [1,2,3]) :: Polynomial Int
+								(Poly [1,2,3]) :: Polynomial Int :: Polynomial Int
+							</code></pre>
+						</li>
+						<li class="fragment fade-in"><code>Polynomial</code> is not really a concrete type. It is a <i>type constructor</i>.</li>
+					</ul>
+					</section>
+					<section>
+						<ul>
+							<li>Concrete types are of the kind <code>*</code>
+								<pre><code data-trim data-noescape>
+									*Main> :k Polynomial Int
+									Polynomial Int :: *
+								</pre></code>
+							</li>
+							<li>Type Constructors are of the kind <code>* -> *</code>
+								<pre><code data-trim data-noescape>
+									*Main> :k Polynomial
+									Polynomial :: * -> *
+								</pre></code>
+							</li>
+							<li class="fragment fade-in">
+								Guess what the kind of <code>(->)</code> is?
+								<pre><code data-trim data-noescape class="fragment fade-in">
+									*Main> :k (->)
+									(->) :: * -> * -> *
+								</pre></code>
+							</li>
+							<li class="fragment fade-in">
+								Typeclasses take a type (<i> or often, a type constructor</i>) and produce a <code>Constraint</code> kind
+								<pre><code data-trim data-noescape>
+									*Main> :k Ord
+									Ord :: * -> GHC.Prim.Constraint
+								</pre></code>
+							</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						There are typeclasses which take in a type constructor...
+						<p class="fragment fade-in">
+							meet Functor
+							<pre><code data-trim data-noescape class="fragment fade-in">
+								*Main> :k Functor
+								Functor :: (* -> *) -> GHC.Prim.Constraint
+							</pre></code>
+						</p>
+					</section>
+					<section>
+						The types over which you can <code>fmap</code>
+						<center><img src="https://ds055uzetaobb.cloudfront.net/image_optimizer/b56c76f586b29ff2a688bc7b0bb6ec419cf7b95e.jpg"></img></center>
+					</section>
+					<section>
+						<ul>
+							<li>
+								Could be the usual lists
+								<pre><code data-trim data-noescape>
+									instance Functor [] where
+	  							fmap = map
+								</code></pre>
+							</li>
+							<li>
+								Or, say, binary trees
+								<pre><code data-trim data-noescape>
+									data Tree a = Leaf a | Fork (Tree a) (Tree a)
+
+									instance Functor Tree where
+										fmap f (Leaf x) = Leaf (f x)
+										fmap f (Fork l r) = Fork (fmap f l) (fmap f r)
+								</code></pre>
+							</li>
+						</ul>
+					</section>
+					<section>
+						The <code>Functor</code> laws
+						<pre><code data-trim data-noescape>
+							fmap id      ≡ id              -- identity law
+							fmap (f . g) ≡ fmap f . fmap g -- composition law
+						</pre></code>
+					</section>
+					<section>
+						Let's make <code>Polynomial</code> an instance of <code>Functor</code> too..
+						<pre><code data-trim data-noescape>
+						instance Functor Polynomial where
+						  fmap f (Poly xs)    = Poly (map f xs)
+						</pre></code>
+						<div class="fragment fade-in">
+							It works...
+							<pre><code data-trim data-noescape>
+								*Main> fmap (+1) (Poly [1,2,3])
+								2 + 3 x^1 + 4 x^2
+							</pre></code>
+						</div>
+					</section>
+				</section>
+				<section>
+					<section>
+						Automatic Differentiation
+					</section>
+					<section>
+						<b>Idea: </b> Carry the tower of derivatives around
+						<pre><code data-trim data-noescape>
+							data DX a = DX { val :: a, dx :: DX a }
+						</code></pre>
+					</section>
+					<section>
+						The derivatives of the constants are zero
+						<pre><code data-trim data-noescape>
+							instance Num n => Num (DX n) where
+							  fromInteger x = DX (fromInteger x) <mark>0</mark>
+						</code></pre>
+						...notice the circularity in the definition here.
+					</section>
+					<section>
+						a couple more lines for the numeric operations..
+						<pre><code data-trim data-noescape>
+							instance Num n => Num (DX n) where
+							  fromInteger x = DX (fromInteger x) 0
+							  DX x₀ x' + DX y₀ y' = DX (x₀ + y₀) (x' + y')
+							  DX x₀ x' - DX y₀ y' = DX (x₀ - y₀) (x' - y')
+							  x@(DX x₀ x') * y@(DX y₀ y') = DX (x₀ * y₀) (x * y' + y * x')
+							  signum (DX x₀ x') = DX (signum x₀) 0
+							  abs x@(DX x₀ x') = DX (abs x₀) (signum x * x')
+						</code></pre>
+						<div class="fragment fade-in">
+						and the quotient rule:
+						<pre><code data-trim data-noescape class="fragment fade-in">
+							instance Fractional n => Fractional (DX n) where
+							  fromRational n = DX (fromRational n) 0
+							  x@(DX x₀ x') / y@(DX y₀ y') =
+							    DX (x₀ / y₀) ((x' * y - x * y') / y ^ 2)
+						</code></pre>
+					</div>
+					</section>
+					<section>
+						to check equality on the values..
+						<pre><code data-trim data-noescape>
+							instance Eq a => Eq (DX a) where
+							  a == b = val a == val b
+							instance Ord a => Ord (DX a) where
+							  compare a b = compare (val a) (val b)
+							</code></pre>
+							<div class="fragment fade-in">
+						and see the first few derivatives:
+						<pre><code data-trim data-noescape>
+							instance Show a => Show (DX a) where
+								show (DX x (DX x' (DX x'' _))) = show [x, x', x'']
+						</code></pre>
+					</div>
+					</section>
+					<section>
+						and the <i>variable of differentiation</i>
+						<pre><code data-trim data-noescape>
+							var x = DX x 1
+						</code></pre>
+					</section>
+					<section>
+						Let's find out the derivative of \(7 x ^2 + 3 x + 2\) at \(x = 5\)
+						<pre><code data-trim data-noescape>
+							*Main> (\ x -> 7*x^2 + 3*x + 2) (var 5)
+							[192,73,14]
+						</pre></code>
+					</section>
+					<section>
+						Let's try differentiating this square root function
+						<pre><code data-trim data-noescape>
+							mySqrt :: (Num a, Ord a, Fractional a) => a -> a -> a
+							mySqrt eps x = go 1
+							  where
+							    go guess
+							      | abs (guess^2 - x) < eps   = guess
+							      | otherwise                 = go newGuess
+							        where
+							          newGuess  =   guess - (guess^2 - x)/(2*guess)
+						</pre></code>
+					</section>
+					<section>
+						<div class="fragment fade-in">
+							What is the value of \(\frac{d\sqrt{x}}{dx}\) at \(x = 2\)?
+							<pre><code data-trim data-noescape>
+								*Main> mySqrt 0.001 (var 2)
+								[1.4142156862745099,0.35356593617839294,-8.832952635110178e-2]
+							</pre></code>
+						</div>
+						<div class="fragment fade-in">
+							...which is nearly accurate with \(\frac{1}{2 \sqrt{x}}\)
+							<pre><code data-trim data-noescape>
+								*Main> (1/(2*(sqrt 2)))
+								0.35355339059327373
+							</pre></code>
+						</div>
+						<div class="fragment fade-in">
+							and I think I can get that precision by actually changing my <code>eps</code>
+							<pre><code data-trim data-noescape>
+								*Main> mySqrt 0.0000000000001 (var 2)
+								[1.4142135623730951,0.35355339059327373,-8.838834764831843e-2]
+							</pre></code>
+						</div>
+					</section>
+				</section>
+				<section>
+					<section>
+						Newton's Method
+						<center><img src="https://upload.wikimedia.org/wikipedia/commons/e/e0/NewtonIteration_Ani.gif"/> <center>
+						\(x_{n+1} = x_{n} - \frac{f(x_n)}{f'(x_n)}\)
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							newtons eps f guess
+							  | abs (f guess) < eps   = guess
+							  | otherwise             = newtons eps f newGuess
+							    where
+							      newGuess              = guess - (x/x')
+							      (DX x (DX x' _))     = f (var guess)
+						</pre></code>
+						What type is this?
+					</section>
+					<section>
+						First try..
+						<pre><code data-trim data-noescape>
+							newtons :: (Num a, Fractional a, Ord a) => a -> (a -> a) -> a -> a
+						</pre></code>
+						<div class="fragment fade-in">
+							doesn't work...
+							<pre><code data-trim data-noescape>
+								randomStuff.hs:75:34:
+						    Couldn't match expected type ‘a’ with actual type ‘DX a’
+						      ‘a’ is a rigid type variable bound by
+						          the type signature for
+						            newtons :: (Num a, Fractional a) => a -> (a -> a) -> a -> a
+						          at randomStuff.hs:69:12
+						    Relevant bindings include
+						      guess :: a (bound at randomStuff.hs:70:15)
+						      f :: a -> a (bound at randomStuff.hs:70:13)
+						      eps :: a (bound at randomStuff.hs:70:9)
+						      newtons :: a -> (a -> a) -> a -> a (bound at randomStuff.hs:70:1)
+						    In the first argument of ‘f’, namely ‘(var guess)’
+						    In the expression: f (var guess)
+							</pre></code>
+						</div>
+					</section>
+					<section>
+						Second try..
+						<pre><code data-trim data-noescape>
+							newtons :: (Num a, Ord a, Fractional a) => a -> (DX a -> DX a) -> a -> a
+						</code></pre>
+						...doesn't work either
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							newtons eps f guess
+								| abs <mark>(f guess)</mark> < eps   = guess
+								| otherwise             = newtons eps f newGuess
+									where
+										newGuess              = guess - (x/x')
+										(DX x (DX x' _))     = <mark>f (var guess)</mark>
+						</pre></code>
+						<ul>
+
+							<li><code>f</code> should not only behave as <code>a -> a</code> but also <code>DX a -> DX a</code></li>
+							<li><b>Idea:</b> <code>newtons</code> is not just polymorphic, but it also wants a polymorphic function as an <i>argument</i></li>
+							<li class="fragment fade-in">Meet <code>Rank2Types</code></li>
+						</ul>
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							{-# LANGUAGE Rank2Types #-}
+							newtons :: (Num a, Ord a, Fractional a) => a -> (forall b. (Num b, Ord b, Fractional b) => b -> b) -> a -> a
+						</pre></code>
+						...typechecks!
+					</section>
+					<section>
+						and we can find \(\sqrt{2}\) without any hassle at all!
+						<pre><code data-trim data-noescape>
+							*Main> newtons 0.0000001 (\x -> x^2 - 2) 1
+							1.4142135623746899
+						</pre></code>
+					</section>
+				</section>
+				<section>
+					<section>
+						Symbolic Differentiation
+					</section>
+					<section>
+						Let's get a symbolic type working first...
+						<pre><code data-trim data-noescape>
+							data Op = Plus | Minus | Times | Divide deriving Eq
+
+							data Sym a = Lit a
+							          | Var String
+							          | Expr Op (Sym a) (Sym a) deriving Eq
+						</pre></code>
+					</section>
+					<section>
+						Overloading the operations is easy...
+						<pre><code data-trim data-noescape>
+							instance Num a => Num (Sym a) where
+							 fromInteger = Lit . fromInteger
+							 (+) = Expr Plus
+							 (-) = Expr Minus
+							 (*) = Expr Times
+
+							instance Fractional a => Fractional (Sym a) where
+							 fromRational = Lit . fromRational
+							 (/) = Expr Divide
+						</code></pre>
+					</section>
+					<section>
+						We need some pretty printing...
+						<pre><code data-trim data-noescape>
+							instance Show Op where
+							  show Plus       = "+"
+							  show Minus      = "-"
+							  show Divide     = "/"
+							  show Times      = "*"
+
+
+							instance Show a => Show (Sym a) where
+							  show (Var x)            = x
+							  show (Lit n)            = show n
+							  show (Expr op e1 e2)    = "(" ++ (show e1) ++ ")" ++ show op ++ "(" ++ (show e2) ++ ")"
+						</code></pre>
+					</section>
+					<section>
+						What is the derivative of \(x^2 + 2 x + 7\)?
+						<pre><code data-trim data-noescape>
+							*Main> val . dx $ (\x -> (x^2 + 2*x + 7)) (var (Var "x"))
+							((((x)*(1))+((x)*(1)))+(((2)*(1))+((x)*(0))))+(0)
+						</code></pre>
+						<p class="fragment fade-in">...really need some simplification!</p>
+					</section>
+					<section>
+						<pre><code data-trim data-noescape style="max-height:800px">
+							step :: (Eq a, Num a, Fractional a) => Sym a -> Sym a
+							step (Expr op (Lit n₁) (Lit n₂)) =
+							      Lit $ (case op of Plus -> (+); Minus -> (-); Times -> (*); Divide -> (/)) n₁ n₂
+							step (Expr Plus
+							        (Expr Times (Lit n₁) (Var x))
+							        (Expr Times (Lit n₂) (Var y)))
+							          | x == y = Expr Times (Expr Plus (Lit n₁) (Lit n₂)) (Var x)
+							step (Expr Plus (Var x) (Var y))
+							          | x == y = Expr Times (Lit 2) (Var x)
+							step (Expr Plus 0 n)      = n
+							step (Expr Plus n 0)      = n
+							step (Expr Times 1 n)     = n
+							step (Expr Times n 1)     = n
+							step (Expr Times 0 n)     = 0
+							step (Expr Times n 0)     = 0
+							step (Expr op e₁ e₂)      = Expr op (step e₁) (step e₂)
+							step (atom)               = atom
+
+							simplify = until . iterate step
+							  where until (x₁ : x₂ : xs) | x₁ == x₂  = x₁
+							                             | otherwise = until (x₂ : xs)
+						</code></pre>
+					</section>
+					<section>
+						<pre><code data-trim data-noescape>
+							*Main> simplify . val . dx $ (\x -> (x^2 + 2*x + 7)) (var (Var "x"))
+							((2.0)*(x))+(2.0)
+						</code></pre>
+						not so bad now!
+						<div class="fragment fade-in">
+							How about the derivative of \(\frac{1}{x}\)?
+							<pre><code data-trim data-noescape>
+								*Main> simplify . val . dx $ (\x -> (1/x)) (var (Var "x"))
+								(-1.0)/((x)*(x))
+							</pre></code>
+						</div>
+					</section>
+				</section>
+				<section>
+					<h3>Thank You!</h3>
+				</section>
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+			// More info about config & dependencies:
+			// - https://github.com/hakimel/reveal.js#configuration
+			// - https://github.com/hakimel/reveal.js#dependencies
+			Reveal.initialize({
+				math: {
+					mathjax: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js',
+					config: 'TeX-AMS_HTML-full'  // See http://docs.mathjax.org/en/latest/config-files.html
+				},
+				dependencies: [
+					{ src: 'plugin/markdown/marked.js' },
+					{ src: 'plugin/math/math.js', async: true },
+					{ src: 'plugin/markdown/markdown.js' },
+					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+				],
+				width: "100%",
+				height: "100%",
+				margin: 0,
+				minScale: 1,
+				maxScale: 1
+			});
+		</script>
+	</body>
+</html>
