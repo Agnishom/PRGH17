@@ -36,7 +36,7 @@
   * Now that we have `merge`, one first approach to define sorting would be this:
   ```haskell
   mySort :: [Int] -> [Int]
-  mySort = foldr (\xs y-> merge xs y) []
+  mySort = foldr (\x ys-> merge [x] ys) []
   ```
   * But, a more interesting idea would be this:
     *
