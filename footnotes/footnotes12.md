@@ -6,7 +6,7 @@
 
 * Figuring out what makes a Haskell program run fast in practice can be tricky! (See [footnote3](https://github.com/Agnishom/PRGH17/blob/master/footnotes/footnote03.md) for a simple way of measuring the running time.) Some of you have shown us some code, whose efficiency we were unable to explain. If any of you do have an explanation, please let us know.
   * [Here](https://gist.github.com/Agnishom/c45f90c53eb0e3c2152bc960735fa03e#file-isprime-hs), Diganta and Devang have defined two functions for primality checking, one with list comprehensions, and the other with naive recursion. For some reason, the one with list comprehensions is way faster!
-  * Siddharth implemented the `selectLeader` function (from the second assignment) in two ways, with `take` and `drop`, and with just plain recursion. Again, for some reason, the `take`-`drop` implementation is much faster.
+  * Siddharth [implemented](https://gist.github.com/Agnishom/c45f90c53eb0e3c2152bc960735fa03e#file-selectleader-hs) the `selectLeader` function (from the second assignment) in two ways, with `take` and `drop`, and with just plain recursion. Again, for some reason, the `take`-`drop` implementation is much faster.
   * [This](https://stackoverflow.com/questions/11466284/how-is-this-fibonacci-function-memoized/) is an interesting StackOverflow post that discusses an interesting example of a function, which appears to be faster when defined in Pointfree style.
 
 * As briefly mentioned in the previous bullet, the [Pointfree Style](https://wiki.haskell.org/Pointfree), is a style of functional programming where functions are defined without explicitly talking about the input. While sometimes elegant, this could easily ofuscate code.
