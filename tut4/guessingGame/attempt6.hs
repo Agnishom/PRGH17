@@ -5,7 +5,7 @@ main :: IO ()
 main = do
   putStrLn "I am guessing a value between 1 to 100"
   guess <- (randomIO :: IO Int)
-  playWith (guess `mod` 100)
+  playWith ((guess `mod` 100) + 1)
   putStrLn "Play again? (Y/N)"
   response <- getLine
   if response == "Y" then

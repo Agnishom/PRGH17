@@ -223,6 +223,144 @@ main =
   ```
     *  The last statement in a `do` construct must be an expression, you must produce an action.
 
+## A Guessing Game
+
+### Step I
+
+The Game play, given the random guess
+
+```
+-- the game play, given the random guess
+
+playWith :: Int -> IO ()
+playWith n = go
+  where
+  go = do
+    putStr "Enter your guess: "
+    guess <- readLn :: IO Int
+    if n == guess then
+      putStrLn "You win!"
+    else
+      if n < guess then
+        do
+          putStrLn "Too large!"
+          go
+      else
+        do
+          putStrLn "Too small!"
+          go
+```
+
+### Step II
+
+Actually generating the random number.
+
+```
+--the random number generator
+import System.Random
+
+-- the main action
+main :: IO ()
+main = do
+  putStrLn "I am guessing a value between 1 to 100"
+  guess <- (randomIO :: IO Int)
+  playWith ((guess `mod` 100) + 1)
+```
+
+### Step III
+
+Tidying up the code by removing unnecessary `do` notation.
+
+```
+playWith :: Int -> IO ()
+playWith n = go
+  where
+  go = do
+    putStr "Enter your guess: "
+    guess <- readLn :: IO Int
+    if n == guess then
+      putStrLn "You win!"
+    else
+      if n < guess then
+          putStrLn "Too large!" >> go -- removed do and simplified code
+      else
+          putStrLn "Too small!" >> go
+```
+
+### Step IV
+
+Playing multiple times
+
+```
+main :: IO ()
+main = do
+  putStrLn "I am guessing a value between 1 to 100"
+  guess <- (randomIO :: IO Int)
+  playWith ((guess `mod` 100) + 1)
+  putStrLn "Play again? (Y/N)" -- playing multiple times
+  response <- getLine
+  if response == "Y" then
+    main
+  else
+    return ()
+```
+
+### Step V
+
+Restrict the number of guesses
+
+```
+playWith :: Int -> IO ()
+playWith n = go 5 -- the number of attempts left
+  where
+  go 0 = putStrLn "You loose!" -- quit
+  go m = do
+    putStr "Enter your guess: "
+    guess <- readLn :: IO Int
+    if n == guess then
+      putStrLn "You win!"
+    else
+      if n < guess then
+          putStrLn "Too large!" >> go (m-1) -- one attempt used up
+      else
+          putStrLn "Too small!" >> go (m-1)
+```
+
+### Step VI
+
+Make sure that trying to read an integer does not crash the program
+
+```
+import Text.Read -- for readMaybe
+
+readUntilValid :: IO Int
+readUntilValid = do
+  s <- getLine
+  case (readMaybe s :: Maybe Int) of
+    Nothing -> putStr "Please enter a valid guess:" >> readUntilValid
+    Just x -> return x
+
+playWith :: Int -> IO ()
+playWith n = go 5
+  where
+  go 0 = putStrLn "You loose!"
+  go m = do
+    putStr "Enter your guess: "
+    guess <- readUntilValid -- safe reading, does not halt program on invalid input
+    if n == guess then
+      putStrLn "You win!"
+    else
+      if n < guess then
+          putStrLn "Too large!" >> go (m-1)
+      else
+          putStrLn "Too small!" >> go (m-1)
+```
+
+### Finally
+
+* Check [this](https://codereview.stackexchange.com/questions/179787/simple-guessing-game-in-haskell) out for even more improvements.
+
+
 ## References
 
 ### From where I (shamelessly) copied stuff
