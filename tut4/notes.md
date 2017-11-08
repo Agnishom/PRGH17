@@ -161,6 +161,17 @@ main = do
           else return () -- silently quit
 ```
 
+* We allow `let` statements inside `do` blocks like this:
+
+```
+main =
+ do name <- getLine
+    let loudName = makeLoud name
+    putStrLn ("Hello " ++ loudName ++ "!")
+    putStrLn ("Oh boy! Am I excited to meet you, " ++ loudName)
+```
+
+
 ## Some Pitfalls
 
 * If you have made it so far into the note, great job! That is all there is to IO.
@@ -180,10 +191,47 @@ main = do
    do putStrLn getLine
   ```
 
+* Why doesn't this work?
+  ```
+  import Data.Char (toUpper)
 
+  main =
+   do name <- getLine
+      loudName <- (map toUpper) name
+      putStrLn ("Hello " ++ loudName ++ "!")
+      putStrLn ("Oh boy! Am I excited to meet you, " ++ loudName)
+  ```
+  * Because `(map toUpper) name` is not wrapped in an IO, so cannot really extract using `<-`.
+  * This works: `loudName <- return $ (map toUpper) name`. Recall that `return` wraps things
+  * But better to just use: `let loudName = (map toUpper) name`. You can have such `let` clauses in `do` blocks
+  * The following also works, but is not really recommended (aesthetic reasons):
+    ```
+    do name <- getLine
+       let loudName = makeLoud name
+       in  do putStrLn ("Hello " ++ loudName ++ "!")
+              putStrLn (
+                  "Oh boy! Am I excited to meet you, "
+                      ++ loudName)
+    ```
+
+* What is wrong with this?
+  ```
+  main = do
+    x <- putStrLn "Please enter your name:"
+    name <- getLine
+    y <- putStrLn ("Hello, " ++ name ++ ", how are you?")
+  ```
+    *  The last statement in a `do` construct must be an expression, you must produce an action.
 
 ## References
+
+### From where I (shamelessly) copied stuff
 
 * [Monads are Burritos](http://chrisdone.com/images/comics/monads_are_burritos.png)
 * [What are monads in non-programming terms?](https://stackoverflow.com/questions/3261729/monad-in-non-programming-terms)
 * [Simple Input and Output](https://en.wikibooks.org/wiki/Haskell/Simple_input_and_output)
+
+### Other helpful resources
+
+* [A Gentle Introduction to Haskell: IO](https://www.haskell.org/tutorial/io.html)
+* [Input and Output - Learn You a Haskell](http://learnyouahaskell.com/input-and-output)
