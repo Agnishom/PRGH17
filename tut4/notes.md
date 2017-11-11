@@ -143,7 +143,7 @@ main :: IO ()
 main = do
           putStrLn "Please enter your name:"
           name <- getLine
-          if name == Kishlaya
+          if name == "Kishlaya"
           then putStrLn "Hello, Kishlaya"
           else putStrLn "I do not know you"
 ```
@@ -156,7 +156,7 @@ main :: IO ()
 main = do
           putStrLn "Please enter your name:"
           name <- getLine
-          if name == Kishlaya
+          if name == "Kishlaya"
           then putStrLn "Hello, Kishlaya"
           else return () -- silently quit
 ```
