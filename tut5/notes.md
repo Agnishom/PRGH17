@@ -85,7 +85,89 @@ x <> mempty = x               -- right identity
 
 ![](https://ds055uzetaobb.cloudfront.net/image_optimizer/b56c76f586b29ff2a688bc7b0bb6ec419cf7b95e.jpg)
 
+* Functors are abstractions of `map`s.
+
+```
+fmap id = id
+fmap (g . f) = fmap g . fmap f
+```
+
+We shall use the infix shorthand `(<$>)` for `fmap`.
+
+### IO is a Functor too
+
+```
+import Data.Char
+
+capitalize = map toUpper
+getLoudLine = capitalize <$> getLine
+```
+
+## Monads
+
+### IO
+
+We have seen a lot of IO [last time](https://github.com/Agnishom/PRGH17/tree/master/tut4)
+
+### Maybe
+
+Chains of Computations. You have seen this in class.
+
+Look at [Footnote 14](https://github.com/Agnishom/PRGH17/blob/master/footnotes/footnote14.md) for a discussion on this.
+
+### List
+
+* The List monad somehow corresponds to non-deterministic computations.
+* This is an example from *Learn You a Haskell*. Suppose I want to find out all the squares in a chessboard which the knight could be at after three moves.
+
+
+```
+type KnightPos = (Int,Int)  
+
+moveKnight :: KnightPos -> [KnightPos]  
+moveKnight (c,r) = filter onBoard  
+    [(c+2,r-1),(c+2,r+1),(c-2,r-1),(c-2,r+1)  
+    ,(c+1,r-2),(c+1,r+2),(c-1,r-2),(c-1,r+2)  
+    ]  
+    where onBoard (c,r) = c `elem` [1..8] && r `elem` [1..8]  
+
+in3 :: KnightPos -> [KnightPos]
+in3 start =  moveKnight `concatMap` (moveKnight `concatMap` (moveKnight `concatMap` [start]) )
+```
+
+* In the list Monad, `return x = [x]` and `(>>=) = flip concatMap`.
+* Let's rewrite this in Monadic style.
+
+```
+in3 start = return start >>= moveKnight >>= moveKnight >>= moveKnight
+```
+
+* In fact, we can write `moveKnight` as a non-deterministic computation using `do` notation.
+
+```
+moveKnight :: KnightPos -> [KnightPos]  
+moveKnight (c,r) = do  
+    (c',r') <- [(c+2,r-1),(c+2,r+1),(c-2,r-1),(c-2,r+1)  
+               ,(c+1,r-2),(c+1,r+2),(c-1,r-2),(c-1,r+2)  
+               ]  
+    if (c' `elem` [1..8] && r' `elem` [1..8])  
+    then return (c',r')  
+    else [] --ignoring this c
+
+in3 :: KnightPos -> [KnightPos]  
+in3 start = do   
+    first <- moveKnight start  
+    second <- moveKnight first  
+    moveKnight second  
+```
+
+### Random Number Generators (State)
+
+
+
 ## References
 
 1. [How important are the abstract concepts?](https://softwareengineering.stackexchange.com/questions/95966/how-important-are-haskells-advanced-concepts-like-monads-and-applicative-functo)
 2. [Haskell Wikibook/Monoids](https://en.wikibooks.org/wiki/Haskell/Monoids)
+3. [Haskell Wikibook/Functor](https://en.wikibooks.org/wiki/Haskell/The_Functor_class)
+4. [Learn You a Haskell/A Fistful of Monads](http://learnyouahaskell.com/a-fistful-of-monads)
