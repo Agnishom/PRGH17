@@ -347,7 +347,8 @@ ghci> take 10 $ fst $ runState infiniteRandoms r
 
 ##### A Quick Implementation of State
 
-Find one [here]()
+* Find one [here](https://github.com/Agnishom/PRGH17/blob/master/tut5/stateExamples.hs).
+* I put together some simple implementation for the purpose of the tutorial, but the common practice is to use [`Control.Monad.State`](https://hackage.haskell.org/package/mtl-1.1.1.0/docs/Control-Monad-State-Lazy.html)
 
 ### So, what are Monads, really?
 
