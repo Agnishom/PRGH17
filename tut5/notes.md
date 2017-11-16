@@ -1,4 +1,4 @@
-# Monoids, Functors, Monads and Why?
+# Monoids, Functors, Monads and Why
 
 ## What is the point?
 
