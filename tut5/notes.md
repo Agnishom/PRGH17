@@ -1,3 +1,5 @@
+# Monoids, Functors, Monads and Why?
+
 ## What is the point?
 
 * Are any of these necessary to get code running? No!
@@ -389,7 +391,7 @@ return >=> f = f >=> return -- identity of return
 * [Monad in Non-Programming Terms](https://stackoverflow.com/questions/3261729/monad-in-non-programming-terms)
 * [Monads are like Burritos](https://blog.plover.com/prog/burritos.html)
 
-That said, the analogies are never substitute for actual examples. And monads might be elegant, but they are not mysterious anyway. 
+That said, the analogies are never substitute for actual examples. And monads might be elegant, but they are not mysterious anyway.
 
 
 ## References

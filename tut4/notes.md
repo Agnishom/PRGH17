@@ -1,3 +1,5 @@
+# A First Look at IO
+
 ## Pureness
 
 * Functions are abstract rules that transform data from one type to the other.
