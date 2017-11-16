@@ -161,8 +161,235 @@ in3 start = do
     moveKnight second  
 ```
 
-### Random Number Generators (State)
+### State
 
+#### Motivating Examples
+
+##### Stack
+
+```
+type Stack = [Int]  
+
+pop :: Stack -> (Int,Stack)  
+pop (x:xs) = (x,xs)  
+
+push :: Int -> Stack -> ((),Stack)  
+push a xs = ((),a:xs)  
+```
+
+* But how do you do a bunch of operations to a stack in a nice way? Say, you want to push `3` and pop the last two items.
+
+```
+stackManip :: Stack -> (Int, Stack)  
+stackManip stack = let  
+    ((),newStack1) = push 3 stack  
+    (a ,newStack2) = pop newStack1  
+    in pop newStack2  
+```  
+
+* This is not elegant. What if we wanted to do 10 operations?
+
+##### Pseudorandom Number Generator (PRNG)
+
+* How does a computer generate Random Numbers?
+  * Well, it cannot, until it has the ability to get some randomness from some source.
+  * However, it can generate "random looking" numbers, i.e, given a sequence of numbers that it generates, it'd be "hard" to predict what the next number is.
+
+* Start with some seed value. Everytime you want a new number, you update it.
+
+* A very simple example is the Linear Congruential Generator.
+  * Fix parameters `m`, `c`, `modulus`.
+  * Initialize the "state" of the generator with `seed`.
+  * When asked for a number, output the current state, and update state to ``(state * m + c) `mod` modulus``.
+
+```
+data RandGen = RandGen {curState :: Int, multiplier :: Int, increment :: Int, modulus :: Int}
+
+runRandom :: RandGen -> (Int, RandGen)
+runRandom gen1 = (v, gen2)
+  where
+    v = curState gen1
+    v2 = (v * (multiplier gen1) + (increment gen1)) `mod` (modulus gen1)
+    gen2 = gen1 { curState = v2}
+
+threeRandoms :: RandGen -> (Int, Int, Int)
+threeRandoms gen =
+  let (r1, g2) = runRandom gen
+      (r2, g3) = runRandom g2
+      (r3, _ ) = runRandom g3
+  in (r1, r2, r3)
+
+```
+
+* Again, this is not elegant.
+
+#### The Pattern
+
+* Think of a stateful computation as a function that takes a `state`, and chages extracts a `value` of it, and changes the `state`.
+
+![](https://ds055uzetaobb.cloudfront.net/uploads/7D5xawP5qN-stateful-computation.png)
+
+```
+newtype State s v = State { runState :: s -> (v,s) }  
+```
+
+* Notice the resemblance between `runState :: s -> (v,s)`, `runRandom :: RandGen -> (Int, RandGen)`, `pop :: Stack -> (Int,Stack)`.
+  * We'll have `State Stack Int`, which means, we'll use the `Stack`s for maintaining the states, and our values will be `Int`s.
+  * We'll have `State RandGen Int`, which means we'll use the `RandGen`s to keep track of the Generators, and will get `Int`s out of them.
+* Guess what? We'll form a `Monad` out of `State s`.
+  * `return val` should give you a stateful computation that does not alter the state at all, and just produces the `val`
+  * `(>>=) :: State s a -> (a -> State s b) -> State s b`, tries to chain together two stateful computations.
+
+```
+instance Monad (State s) where  
+    return x = State $ \s -> (x,s)  
+    (State h) >>= f = State $ \s -> let (a, newState) = h s  -- run the first stateful computation, and call the result a
+                                        (State g) = f a -- now, use this result to create a new stateful computation
+                                    in  g newState  
+```                               
+
+#### Back To Examples
+
+##### Stack
+
+* Instead of  writing `Stack -> (a, Stack)`, we'll write `State Stack a`
+
+```
+pop :: State Stack Int  
+pop = State $ \(x:xs) -> (x,xs)  
+
+push :: Int -> State Stack ()  
+push a = State $ \xs -> ((),a:xs)
+```     
+
+* Now, `stackManip` is really just a stateful computation
+
+```
+
+stackManip :: State Stack Int  
+stackManip = do  
+    push 3  
+    pop  
+    pop  
+```
+
+```
+ghci> runState stackManip [5,8,2,1]  
+(5,[8,2,1])
+```
+
+* Let's think of another stack manipulation, which involves some conditionals.
+
+```
+stackStuff :: State Stack ()  
+stackStuff = do  
+    a <- pop  
+    if a == 5  
+        then push 5  
+        else do  
+            push 3  
+            push 8  
+```
+
+```
+ghci> runState stackStuff [9,0,2,1,0]  
+((),[8,3,0,2,1,0])  
+```
+
+##### Pseudorandom Number Generator
+
+* Again, we can rewrite `runRandom` with `State`.
+
+```
+runRandom :: State RandGen Int
+runRandom = State $ f
+  where
+    f gen1 = (v, gen2)
+        where
+          v = curState gen1
+          v2 = (v * (multiplier gen1) + (increment gen1)) `mod` (modulus gen1)
+          gen2 = gen1 { curState = v2 }
+```
+
+* Then, we can rewrite `threeRandoms` as follows:
+
+```
+threeRandoms :: State RandGen (Int, Int, Int)
+threeRandoms = do
+    a <- runRandom
+    b <- runRandom
+    c <- runRandom
+    return (a,b,c)
+```
+
+```
+ghci> let r = RandGen 10 6152761 122 1000007
+ghci> runState threeRandoms r
+((10,527305,928721),RandGen {curState = 349697, multiplier = 6152761, increment = 122, modulus = 1000007})
+```
+
+* We can even have an infinite random number stream:
+
+```
+infiniteRandoms :: State RandGen [Int]
+infiniteRandoms = do
+  x <- runRandom
+  xs <- infiniteRandoms
+  return (x:xs)
+```
+
+```
+ghci> take 10 $ fst $ runState infiniteRandoms r
+[10,527305,928721,349697,2430,104695,803911,624734,84012,138940]
+```
+
+##### A Quick Implementation of State
+
+Find one [here]()
+
+### So, what are Monads, really?
+
+* Monads are a design pattern that is frequently used in Haskell code.
+* Formally, Monad is a typeclass that has the following type signature and follow the following rules:
+
+#### Signature
+
+```
+class Monad m where
+        return :: a -> m a
+        (>>=)  :: m a -> (a -> m b) -> m b
+```
+
+(This is not the signature actually used. But I am using this here to avoid technicalities)
+
+#### Monad Laws
+
+```
+m >>= return     =  m                        -- right unit
+return x >>= f   =  f x                      -- left unit
+
+(m >>= f) >>= g  =  m >>= (\x -> f x >>= g)  -- associativity
+```
+
+* With `(>=>)`, defined as follows, associativity makes more sense.
+
+```
+(>=>) :: Monad m => (a -> m b) -> (b -> m c) -> (a -> m c)
+f >=> g = \x -> f x >>= g
+```
+
+```
+return >=> f = f >=> return -- identity of return
+(f >=> g) >=> h  =  f >=> (g >=> h) -- associativity
+```
+
+#### I want another Monad Analogy, anyway
+
+* [Functors, Applicatives, and Monads in Pictures](http://adit.io/posts/2013-04-17-functors,_applicatives,_and_monads_in_pictures.html)
+* [Monad in Non-Programming Terms](https://stackoverflow.com/questions/3261729/monad-in-non-programming-terms)
+* [Monads are like Burritos](https://blog.plover.com/prog/burritos.html)
+
+That said, the analogies are never substitute for actual examples. And monads might be elegant, but they are not mysterious anyway. 
 
 
 ## References
@@ -171,3 +398,4 @@ in3 start = do
 2. [Haskell Wikibook/Monoids](https://en.wikibooks.org/wiki/Haskell/Monoids)
 3. [Haskell Wikibook/Functor](https://en.wikibooks.org/wiki/Haskell/The_Functor_class)
 4. [Learn You a Haskell/A Fistful of Monads](http://learnyouahaskell.com/a-fistful-of-monads)
+5. [Learn You a Haskell/For a Few Monads More](http://learnyouahaskell.com/for-a-few-monads-more#state)
