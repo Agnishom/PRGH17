@@ -1,0 +1,4 @@
+message = "Empty Test Case File. Replace this file with the appropriate testcase file from the `testCases` folder.
+
+
+main = putStrLn message
